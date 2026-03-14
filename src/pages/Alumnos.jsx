@@ -37,12 +37,12 @@ export default function Alumnos() {
                 <button className="btn btn-primary" onClick={() => { setEditingAlumno(null); setShowModal(true) }}><Plus size={18} /> Nuevo Alumno</button>
             </div>
 
-            <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-                <div className="search-input" style={{ flex: 1, minWidth: 0 }}>
+            <div className="alumnos-toolbar">
+                <div className="search-input alumnos-search">
                     <Search />
                     <input className="input-field" placeholder="Buscar por nombre o email..." value={search} onChange={e => setSearch(e.target.value)} />
                 </div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <div className="alumnos-plan-chips">
                     {['Todos', 'Musculacion', 'Full', 'Funcional'].map(plan => <button key={plan} className={`chip ${filterPlan === plan ? 'active' : ''}`} onClick={() => setFilterPlan(plan)}>{plan}</button>)}
                 </div>
             </div>
@@ -66,25 +66,25 @@ export default function Alumnos() {
             </div>
 
             <div className="mobile-only">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div className="alumnos-mobile-list">
                     {filtered.map(alumno => (
-                        <div key={alumno.id} className="card" style={{ padding: 16 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                        <div key={alumno.id} className="card alumnos-mobile-card">
+                            <div className="alumnos-mobile-header">
                                 <div className="user-avatar" style={{ width: 42, height: 42, fontSize: '0.8rem' }}>{alumno.avatar}</div>
-                                <div style={{ minWidth: 0, flex: 1 }}>
-                                    <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{alumno.nombre}</div>
-                                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{alumno.email}</div>
+                                <div className="alumnos-mobile-name-wrap">
+                                    <div className="alumnos-mobile-name">{alumno.nombre}</div>
+                                    <div className="alumnos-mobile-email">{alumno.email}</div>
                                 </div>
                                 <span className={`badge ${alumno.estado === 'activo' ? 'badge-success' : 'badge-danger'}`}>{alumno.estado === 'activo' ? 'Activo' : 'Vencido'}</span>
                             </div>
-                            <div className="responsive-grid-2" style={{ marginBottom: 14 }}>
+                            <div className="responsive-grid-2 alumnos-mobile-info-grid">
                                 <InfoItem label="Plan" value={<span className="badge badge-purple">{alumno.plan}</span>} />
                                 <InfoItem label="Inicio" value={new Date(`${alumno.fechaInicio}T12:00:00`).toLocaleDateString('es-AR')} />
                                 <InfoItem label="Objetivo" value={alumno.objetivo} />
                                 <InfoItem label="Telefono" value={alumno.telefono || '-'} />
                             </div>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => { setEditingAlumno(alumno); setShowModal(true) }}><Edit3 size={15} /> Editar</button>
+                            <div className="alumnos-mobile-actions">
+                                <button className="btn btn-secondary alumnos-mobile-edit-btn" onClick={() => { setEditingAlumno(alumno); setShowModal(true) }}><Edit3 size={15} /> Editar</button>
                                 <button className="btn btn-ghost" style={{ color: 'var(--accent-danger)' }} onClick={() => deleteAlumno(alumno.id)}><Trash2 size={15} /></button>
                             </div>
                         </div>
@@ -99,9 +99,9 @@ export default function Alumnos() {
 
 function InfoItem({ label, value }) {
     return (
-        <div style={{ padding: 10, borderRadius: 'var(--radius-md)', background: 'var(--bg-input)' }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 4 }}>{label}</div>
-            <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>{value}</div>
+        <div className="alumnos-info-item">
+            <div className="alumnos-info-label">{label}</div>
+            <div className="alumnos-info-value">{value}</div>
         </div>
     )
 }
@@ -124,27 +124,36 @@ function AlumnoModal({ alumno, onSave, onClose }) {
 
     return (
         <div className="modal-overlay" onClick={onClose} style={{ zIndex: 9999 }}>
-            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '650px', width: '90%' }}>
+            <div className="modal alumnos-modal" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h3>{alumno ? 'Editar Alumno' : 'Nuevo Alumno'}</h3>
                     <button className="modal-close" onClick={onClose}><X size={18} /></button>
                 </div>
                 <div className="modal-body">
-                    <div className="input-group"><label><User size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Nombre Completo</label><input className="input-field" value={form.nombre} onChange={e => update('nombre', e.target.value)} placeholder="Nombre y Apellido" /></div>
-                    <div className="form-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-                        <div className="input-group"><label><Mail size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Email</label><input className="input-field" type="email" value={form.email} onChange={e => update('email', e.target.value)} placeholder="email@ejemplo.com" /></div>
-                        <div className="input-group"><label><Phone size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Telefono</label><input className="input-field" value={form.telefono} onChange={e => update('telefono', e.target.value)} placeholder="11-XXXX-XXXX" /></div>
-                    </div>
-                    <div className="form-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-                        <div className="input-group"><label>Plan</label><select className="input-field" value={form.plan} onChange={e => update('plan', e.target.value)}><option>Musculacion</option><option>Full</option><option>Funcional</option></select></div>
-                        <div className="input-group"><label>Fecha de Inicio</label><input className="input-field" type="date" value={form.fechaInicio} onChange={e => update('fechaInicio', e.target.value)} /></div>
-                    </div>
-                    <div className="form-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '16px' }}>
-                        <div className="input-group"><label>Peso (kg)</label><input className="input-field" type="number" value={form.peso} onChange={e => update('peso', e.target.value)} /></div>
-                        <div className="input-group"><label>Altura (cm)</label><input className="input-field" type="number" value={form.altura} onChange={e => update('altura', e.target.value)} /></div>
-                        <div className="input-group"><label>Edad</label><input className="input-field" type="number" value={form.edad} onChange={e => update('edad', e.target.value)} /></div>
-                    </div>
-                    <div className="input-group"><label><Target size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Objetivo</label><select className="input-field" value={form.objetivo} onChange={e => update('objetivo', e.target.value)}><option>Hipertrofia</option><option>Tonificacion</option><option>Fuerza</option><option>Bajar de peso</option><option>Resistencia</option><option>Salud general</option></select></div>
+                    <section className="alumnos-form-section">
+                        <h4 className="alumnos-form-section-title">Datos personales</h4>
+                        <div className="input-group"><label><User size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Nombre Completo</label><input className="input-field" value={form.nombre} onChange={e => update('nombre', e.target.value)} placeholder="Nombre y Apellido" /></div>
+                        <div className="alumnos-form-grid-2">
+                            <div className="input-group"><label><Mail size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Email</label><input className="input-field" type="email" value={form.email} onChange={e => update('email', e.target.value)} placeholder="email@ejemplo.com" /></div>
+                            <div className="input-group"><label><Phone size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Telefono</label><input className="input-field" value={form.telefono} onChange={e => update('telefono', e.target.value)} placeholder="11-XXXX-XXXX" /></div>
+                        </div>
+                    </section>
+                    <section className="alumnos-form-section">
+                        <h4 className="alumnos-form-section-title">Plan y objetivo</h4>
+                        <div className="alumnos-form-grid-2">
+                            <div className="input-group"><label>Plan</label><select className="input-field" value={form.plan} onChange={e => update('plan', e.target.value)}><option>Musculacion</option><option>Full</option><option>Funcional</option></select></div>
+                            <div className="input-group"><label>Fecha de Inicio</label><input className="input-field" type="date" value={form.fechaInicio} onChange={e => update('fechaInicio', e.target.value)} /></div>
+                        </div>
+                        <div className="input-group"><label><Target size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Objetivo</label><select className="input-field" value={form.objetivo} onChange={e => update('objetivo', e.target.value)}><option>Hipertrofia</option><option>Tonificacion</option><option>Fuerza</option><option>Bajar de peso</option><option>Resistencia</option><option>Salud general</option></select></div>
+                    </section>
+                    <section className="alumnos-form-section">
+                        <h4 className="alumnos-form-section-title">Metricas iniciales</h4>
+                        <div className="alumnos-form-grid-3">
+                            <div className="input-group"><label>Peso (kg)</label><input className="input-field" type="number" value={form.peso} onChange={e => update('peso', e.target.value)} /></div>
+                            <div className="input-group"><label>Altura (cm)</label><input className="input-field" type="number" value={form.altura} onChange={e => update('altura', e.target.value)} /></div>
+                            <div className="input-group"><label>Edad</label><input className="input-field" type="number" value={form.edad} onChange={e => update('edad', e.target.value)} /></div>
+                        </div>
+                    </section>
                 </div>
                 <div className="modal-footer">
                     <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
