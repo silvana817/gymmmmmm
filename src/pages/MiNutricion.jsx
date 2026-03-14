@@ -11,7 +11,7 @@ import { getLongDateLabel, getShortWeekdayLabel, getTodayISO, getWeekDates, shif
 
 export function MiNutricion() {
     const { currentAlumnoId } = useAppSession()
-    const { getAlumnoNutricion, addFoodItem, removeFoodItem, editFoodItem, initializeNutritionDay, analyzeFood, planesNutricionales } = useAppNutrition()
+    const { getAlumnoNutricion, addFoodItem, removeFoodItem, editFoodItem, initializeNutritionDay, analyzeFood, planesNutricionales, addCustomFood } = useAppNutrition()
     const { foodDatabase, foodCategories } = useAppCatalog()
     const nutri = getAlumnoNutricion(currentAlumnoId)
 
@@ -351,6 +351,7 @@ export function MiNutricion() {
                     foodCategories={foodCategories}
                     analyzeFood={analyzeFood}
                     onAdd={(item) => handleAddFood(showAddModal, item)}
+                    onSaveCustomFood={addCustomFood}
                     onClose={() => setShowAddModal(null)}
                 />
             )}
@@ -377,13 +378,13 @@ function MacroCard({ icon, label, value, max, percent, color }) {
     )
 }
 
-function AddFoodModal({ tipo, foodDatabase, foodCategories, analyzeFood, onAdd, onClose }) {
+function AddFoodModal({ tipo, foodDatabase, foodCategories, analyzeFood, onAdd, onSaveCustomFood, onClose }) {
     const [mode, setMode] = useState('buscar') // buscar, foto, ai, manual
     const [search, setSearch] = useState('')
     const [filterCat, setFilterCat] = useState('Todos')
     const [aiText, setAiText] = useState('')
     const [aiResults, setAiResults] = useState([])
-    const [manualForm, setManualForm] = useState({ nombre: '', calorias: '', proteinas: '', carbos: '', grasas: '' })
+    const [manualForm, setManualForm] = useState({ nombre: '', calorias: '', proteinas: '', carbos: '', grasas: '', categoria: 'Personalizados' })
     const [selectedFood, setSelectedFood] = useState(null)
     const [weightInput, setWeightInput] = useState(100)
     const [analyzing, setAnalyzing] = useState(false)
@@ -856,7 +857,25 @@ function AddFoodModal({ tipo, foodDatabase, foodCategories, analyzeFood, onAdd, 
                                             <input className="input-field" type="number" style={{ borderRadius: 10, padding: '12px 14px' }} value={manualForm.grasas} onChange={e => setManualForm(prev => ({ ...prev, grasas: Number(e.target.value) }))} placeholder="0" />
                                         </div>
                                     </div>
-                                    <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 24, borderRadius: 12, padding: '14px 0' }}
+                                    <div className="input-group" style={{ marginTop: 12, marginBottom: 0 }}>
+                                        <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Categoria (opcional)</label>
+                                        <input className="input-field" style={{ borderRadius: 10, padding: '12px 14px' }} value={manualForm.categoria} onChange={e => setManualForm(prev => ({ ...prev, categoria: e.target.value }))} placeholder="Personalizados" />
+                                    </div>
+                                    <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center', marginTop: 12, borderRadius: 12, padding: '12px 0' }}
+                                        onClick={() => {
+                                            if (!manualForm.nombre || !manualForm.calorias) return
+                                            onSaveCustomFood({
+                                                nombre: manualForm.nombre,
+                                                categoria: manualForm.categoria || 'Personalizados',
+                                                calorias: Number(manualForm.calorias) || 0,
+                                                proteinas: Number(manualForm.proteinas) || 0,
+                                                carbos: Number(manualForm.carbos) || 0,
+                                                grasas: Number(manualForm.grasas) || 0,
+                                            })
+                                        }} disabled={!manualForm.nombre || !manualForm.calorias}>
+                                        Guardar en mis alimentos
+                                    </button>
+                                    <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 12, borderRadius: 12, padding: '14px 0' }}
                                         onClick={() => {
                                             if (manualForm.nombre && manualForm.calorias) {
                                                 const food = {

@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { EXERCISES, MUSCLE_GROUPS } from '../data/exercises'
-import { FOOD_DATABASE, FOOD_CATEGORIES } from '../data/foods'
+import { FOOD_DATABASE } from '../data/foods'
 import { buildWorkoutSetKey, normalizeRoutine } from '../utils/routineSchema'
 import { getTodayISO } from '../utils/date'
 import { appConfig } from '../config/app'
@@ -384,6 +384,7 @@ function createEmptyAppState() {
         pagos: [],
         nutricion: {},
         planesNutricionales: [],
+        customFoods: [],
         customExerciseDescriptions: {},
         workoutLogs: {},
     }
@@ -402,6 +403,7 @@ function createBaseAppState() {
         pagos: deepClone(INITIAL_PAGOS),
         nutricion: deepClone(INITIAL_NUTRICION),
         planesNutricionales: deepClone(INITIAL_PLANES_NUTRICIONALES),
+        customFoods: [],
         customExerciseDescriptions: deepClone(INITIAL_EXERCISE_DESCRIPTIONS),
         workoutLogs: deepClone(INITIAL_WORKOUT_LOGS),
     }
@@ -434,6 +436,7 @@ function normalizeAppState(rawState) {
         planesNutricionales: Array.isArray(rawState.planesNutricionales)
             ? rawState.planesNutricionales
             : baseState.planesNutricionales,
+        customFoods: Array.isArray(rawState.customFoods) ? rawState.customFoods : baseState.customFoods,
         customExerciseDescriptions: isRecord(rawState.customExerciseDescriptions)
             ? rawState.customExerciseDescriptions
             : baseState.customExerciseDescriptions,
@@ -483,6 +486,7 @@ export function AppProvider({ children }) {
     const [pagos, setPagos] = useState(initialState.pagos)
     const [nutricion, setNutricion] = useState(initialState.nutricion)
     const [planesNutricionales, setPlanesNutricionales] = useState(initialState.planesNutricionales)
+    const [customFoods, setCustomFoods] = useState(initialState.customFoods)
     const [customExerciseDescriptions, setCustomExerciseDescriptions] = useState(initialState.customExerciseDescriptions)
     const [workoutLogs, setWorkoutLogs] = useState(initialState.workoutLogs)
 
@@ -525,6 +529,7 @@ export function AppProvider({ children }) {
             pagos,
             nutricion,
             planesNutricionales,
+            customFoods,
             customExerciseDescriptions,
             workoutLogs,
         })
@@ -536,6 +541,7 @@ export function AppProvider({ children }) {
         pagos,
         nutricion,
         planesNutricionales,
+        customFoods,
         customExerciseDescriptions,
         workoutLogs,
     ])
@@ -807,6 +813,39 @@ export function AppProvider({ children }) {
         })
     }, [])
 
+    const addCustomFood = useCallback((foodInput) => {
+        if (!isRecord(foodInput)) return null
+
+        const nombre = String(foodInput.nombre ?? '').trim()
+        if (!nombre) return null
+
+        const toNumber = value => {
+            const parsed = Number(value)
+            return Number.isFinite(parsed) ? parsed : 0
+        }
+
+        const normalizedFood = {
+            id: createEntityId('food'),
+            nombre,
+            calorias: toNumber(foodInput.calorias),
+            proteinas: toNumber(foodInput.proteinas),
+            carbos: toNumber(foodInput.carbos),
+            grasas: toNumber(foodInput.grasas),
+            fibra: toNumber(foodInput.fibra),
+            categoria: String(foodInput.categoria || 'Personalizados').trim() || 'Personalizados',
+            source: 'custom',
+            createdAt: new Date().toISOString(),
+        }
+
+        setCustomFoods(prev => {
+            const key = normalizedFood.nombre.toLowerCase()
+            const withoutSameName = prev.filter(item => String(item.nombre || '').toLowerCase() !== key)
+            return [normalizedFood, ...withoutSameName]
+        })
+
+        return normalizedFood
+    }, [])
+
     const analyzeFood = useCallback((description) => {
         return analyzeNutritionAI(description)
     }, [])
@@ -907,16 +946,27 @@ export function AppProvider({ children }) {
     }), [currentAlumno, currentAlumnoId, role, setCurrentAlumnoId, setRole, trainerProfile])
 
     // Catalog Context Value
-    const catalogValue = useMemo(() => ({
-        exercises: EXERCISES.map(ex => ({
-            ...ex,
-            descripcion: customExerciseDescriptions[ex.id] || ex.descripcion
-        })),
-        muscleGroups: MUSCLE_GROUPS,
-        foodDatabase: FOOD_DATABASE,
-        foodCategories: FOOD_CATEGORIES,
-        updateExerciseDescription
-    }), [customExerciseDescriptions, updateExerciseDescription])
+    const catalogValue = useMemo(() => {
+        const normalizedCustomFoods = customFoods
+            .filter(item => isRecord(item) && String(item.nombre || '').trim())
+            .map(item => ({ ...item, source: 'custom' }))
+
+        const mergedFoodDatabase = [
+            ...normalizedCustomFoods,
+            ...FOOD_DATABASE.filter(baseFood => !normalizedCustomFoods.some(customFood => customFood.nombre.toLowerCase() === baseFood.nombre.toLowerCase())),
+        ]
+
+        return {
+            exercises: EXERCISES.map(ex => ({
+                ...ex,
+                descripcion: customExerciseDescriptions[ex.id] || ex.descripcion
+            })),
+            muscleGroups: MUSCLE_GROUPS,
+            foodDatabase: mergedFoodDatabase,
+            foodCategories: Array.from(new Set(mergedFoodDatabase.map(food => food.categoria).filter(Boolean))),
+            updateExerciseDescription
+        }
+    }, [customExerciseDescriptions, customFoods, updateExerciseDescription])
 
     const alumnosValue = useMemo(() => ({
         alumnos,
@@ -955,7 +1005,8 @@ export function AppProvider({ children }) {
         addPlanNutricional,
         updatePlanNutricional,
         deletePlanNutricional,
-    }), [nutricion, planesNutricionales, addFoodItem, removeFoodItem, editFoodItem, initializeNutritionDay, setNutritionGoals, setNutritionPlan, analyzeFood, getAlumnoNutricion, addPlanNutricional, updatePlanNutricional, deletePlanNutricional])
+        addCustomFood,
+    }), [nutricion, planesNutricionales, addFoodItem, removeFoodItem, editFoodItem, initializeNutritionDay, setNutritionGoals, setNutritionPlan, analyzeFood, getAlumnoNutricion, addPlanNutricional, updatePlanNutricional, deletePlanNutricional, addCustomFood])
 
     const workoutLogsValue = useMemo(() => ({
         workoutLogs,
@@ -978,6 +1029,7 @@ export function AppProvider({ children }) {
         nutricion,
         workoutLogs,
         planesNutricionales,
+        customFoods,
         exercises: catalogValue.exercises,
         muscleGroups: catalogValue.muscleGroups,
         foodDatabase: catalogValue.foodDatabase,
@@ -1001,6 +1053,7 @@ export function AppProvider({ children }) {
         addPlanNutricional,
         updatePlanNutricional,
         deletePlanNutricional,
+        addCustomFood,
         updateWorkoutSetLog,
         hydrateWorkoutLogsForAlumno,
         getAlumnoRutinas,
@@ -1020,6 +1073,7 @@ export function AppProvider({ children }) {
         nutricion,
         workoutLogs,
         planesNutricionales,
+        customFoods,
         catalogValue,
         addAlumno,
         updateAlumno,
@@ -1040,6 +1094,7 @@ export function AppProvider({ children }) {
         addPlanNutricional,
         updatePlanNutricional,
         deletePlanNutricional,
+        addCustomFood,
         updateWorkoutSetLog,
         hydrateWorkoutLogsForAlumno,
         getAlumnoRutinas,
