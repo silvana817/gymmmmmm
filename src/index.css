@@ -159,56 +159,6 @@ select {
 }
 
 
-
-/* Reset & Base */
-*,
-*::before,
-*::after {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html {
-  font-size: 16px;
-  scroll-behavior: smooth;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  min-height: 100vh;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
-}
-
-#root {
-  min-height: 100vh;
-}
-
-a {
-  text-decoration: none;
-  color: inherit;
-}
-
-ul,
-ol {
-  list-style: none;
-}
-
-button {
-  cursor: pointer;
-  font-family: inherit;
-}
-
-input,
-textarea,
-select {
-  font-family: inherit;
-}
-
 img {
   max-width: 100%;
   display: block;
@@ -1652,5 +1602,146 @@ select.input-field {
   .data-table th,
   .data-table td {
     padding: 12px 12px;
+  }
+}
+
+/* ===================== ALUMNOS (AESTHETIC UNIFICATION) ===================== */
+.alumnos-toolbar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.alumnos-search {
+  flex: 1;
+  min-width: 220px;
+}
+
+.alumnos-plan-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.alumnos-mobile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alumnos-mobile-card {
+  padding: 16px;
+}
+
+.alumnos-mobile-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.alumnos-mobile-name-wrap {
+  min-width: 0;
+  flex: 1;
+}
+
+.alumnos-mobile-name {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.alumnos-mobile-email {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.alumnos-mobile-info-grid {
+  margin-bottom: 14px;
+}
+
+.alumnos-mobile-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.alumnos-mobile-edit-btn {
+  flex: 1;
+  justify-content: center;
+}
+
+.alumnos-info-item {
+  padding: 10px;
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+}
+
+.alumnos-info-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.alumnos-info-value {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.alumnos-modal {
+  max-width: 680px;
+}
+
+.alumnos-form-section {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-bottom: 12px;
+  background: var(--bg-input);
+}
+
+.alumnos-form-section:last-child {
+  margin-bottom: 0;
+}
+
+.alumnos-form-section-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.alumnos-form-grid-2,
+.alumnos-form-grid-3 {
+  display: grid;
+  gap: 12px;
+}
+
+.alumnos-form-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.alumnos-form-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 768px) {
+  .alumnos-toolbar {
+    align-items: stretch;
+  }
+
+  .alumnos-search {
+    min-width: 100%;
+  }
+
+  .alumnos-form-grid-2,
+  .alumnos-form-grid-3 {
+    grid-template-columns: 1fr;
   }
 }
