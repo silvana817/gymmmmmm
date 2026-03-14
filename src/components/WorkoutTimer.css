@@ -1,0 +1,265 @@
+/* ===================== APPLE-STYLE DYNAMIC ISLAND TIMER ===================== */
+.timer-dynamic-island {
+    position: fixed;
+    bottom: max(28px, env(safe-area-inset-bottom, 28px));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+    /* Let clicks pass through the container */
+}
+
+.timer-pill-container {
+    background: rgba(20, 20, 22, 0.88);
+    /* Dark Glassmorphism */
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.5) inset;
+    border-radius: 40px;
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    transform-origin: bottom center;
+    color: #ffffff;
+    overflow: hidden;
+    min-width: 160px;
+    white-space: nowrap;
+}
+
+/* Hover & Active states for the pill */
+.timer-pill-container:hover {
+    background: rgba(40, 40, 44, 0.9);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+}
+
+.timer-pill-container:active {
+    transform: scale(0.97);
+}
+
+/* --- STATE: Expanded --- */
+.timer-pill-container.expanded {
+    border-radius: 28px;
+    padding: 20px;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 240px;
+    background: rgba(24, 24, 26, 0.92);
+}
+
+.timer-pill-container.expanded:hover {
+    background: rgba(28, 28, 30, 0.95);
+}
+
+.timer-pill-container.expanded:active {
+    transform: scale(1);
+    /* Disable scale down when expanded interacting */
+}
+
+/* --- INNER ELEMENTS --- */
+
+/* Compact Pill View */
+.pill-compact-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    transition: opacity 0.3s ease;
+}
+
+.pill-time {
+    font-family: 'SF Mono', 'Fira Code', 'Inter', -apple-system, BlinkMacSystemFont, monospace;
+    font-size: 1.1rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 1px;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+/* Pulsing dot when running */
+.pulse-dot {
+    width: 6px;
+    height: 6px;
+    background-color: var(--accent-primary);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--accent-primary);
+    animation: pulse 1.5s infinite;
+}
+
+.pulse-dot.paused {
+    background-color: var(--text-muted);
+    box-shadow: none;
+    animation: none;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.4;
+        transform: scale(0.8);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.pill-mini-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.2s;
+    pointer-events: auto;
+}
+
+.pill-mini-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Expanded View Content */
+.pill-expanded-content {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    align-items: center;
+    animation: fadeIn 0.4s ease forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.expanded-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.close-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s, background 0.2s;
+}
+
+.close-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.expanded-time {
+    font-size: 3rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -1px;
+    margin: 10px 0 24px;
+    background: linear-gradient(180deg, #ffffff 0%, #a0a0b0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.5));
+}
+
+.expanded-controls {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+}
+
+.expanded-controls button {
+    flex: 1;
+    border-radius: 16px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.btn-reset {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+}
+
+.btn-reset:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-reset:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-play {
+    background: var(--gradient-primary);
+    color: white;
+    box-shadow: 0 4px 15px rgba(108, 99, 255, 0.3);
+}
+
+.btn-play:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(108, 99, 255, 0.4);
+}
+
+.btn-play:active {
+    transform: translateY(0);
+}
+
+.btn-pause {
+    background: rgba(255, 166, 0, 0.15);
+    color: var(--accent-warning);
+    border: 1px solid rgba(255, 166, 0, 0.3);
+}
+
+.btn-pause:hover {
+    background: rgba(255, 166, 0, 0.25);
+}
