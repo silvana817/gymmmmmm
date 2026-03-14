@@ -7,9 +7,9 @@ export default function Nutricion() {
     const { alumnos } = useAppAlumnos()
     const {
         getAlumnoNutricion, setNutritionGoals, setNutritionPlan,
-        planesNutricionales, deletePlanNutricional, addPlanNutricional, updatePlanNutricional
+        planesNutricionales, deletePlanNutricional, addPlanNutricional, updatePlanNutricional, addCustomFood
     } = useAppNutrition()
-    const { foodDatabase } = useAppCatalog()
+    const { foodDatabase, foodCategories } = useAppCatalog()
 
     const [activeTab, setActiveTab] = useState('control') // 'control' | 'planes'
 
@@ -165,7 +165,8 @@ export default function Nutricion() {
                 <PlanNutricionalBuilder
                     initialPlan={editingPlan}
                     foodDatabase={foodDatabase}
-                    foodCategories={foodDatabase.map(f => f.categoria).filter((v, i, a) => a.indexOf(v) === i)}
+                    foodCategories={foodCategories}
+                    addCustomFood={addCustomFood}
                     onSave={plan => {
                         if (editingPlan) updatePlanNutricional(editingPlan.id, plan)
                         else addPlanNutricional(plan)
@@ -267,7 +268,7 @@ function PlanModal({ alumno, planId, planes, onSave, onClose }) {
     )
 }
 
-function PlanNutricionalBuilder({ initialPlan, foodDatabase, foodCategories, onSave, onClose }) {
+function PlanNutricionalBuilder({ initialPlan, foodDatabase, foodCategories, addCustomFood, onSave, onClose }) {
     const [nombre, setNombre] = useState(initialPlan?.nombre || '')
     const [descripcion, setDescripcion] = useState(initialPlan?.descripcion || '')
     const [comidas, setComidas] = useState(initialPlan?.comidas || [
@@ -280,6 +281,28 @@ function PlanNutricionalBuilder({ initialPlan, foodDatabase, foodCategories, onS
     const [activeMeal, setActiveMeal] = useState(0)
     const [search, setSearch] = useState('')
     const [filterCat, setFilterCat] = useState('Todos')
+
+    const [newFood, setNewFood] = useState({ nombre: '', categoria: 'Personalizados', calorias: '', proteinas: '', carbos: '', grasas: '' })
+
+    const createCustomFood = () => {
+        const nombre = String(newFood.nombre || '').trim()
+        if (!nombre) return
+
+        const created = addCustomFood({
+            nombre,
+            categoria: newFood.categoria || 'Personalizados',
+            calorias: Number(newFood.calorias) || 0,
+            proteinas: Number(newFood.proteinas) || 0,
+            carbos: Number(newFood.carbos) || 0,
+            grasas: Number(newFood.grasas) || 0,
+        })
+
+        if (created) {
+            setSearch(created.nombre)
+            setFilterCat(created.categoria || 'Todos')
+            setNewFood({ nombre: '', categoria: 'Personalizados', calorias: '', proteinas: '', carbos: '', grasas: '' })
+        }
+    }
 
     const addMeal = () => {
         setComidas(prev => [...prev, { tipo: `Comida ${prev.length + 1}`, items: [] }])
@@ -379,6 +402,22 @@ function PlanNutricionalBuilder({ initialPlan, foodDatabase, foodCategories, onS
 
                     <div className="routine-builder-main-grid">
                         <div className="builder-library-col">
+                            <div className="card" style={{ padding: 10, marginBottom: 10, border: '1px dashed var(--border-color)' }}>
+                                <div style={{ fontSize: '0.78rem', fontWeight: 700, marginBottom: 8 }}>Crear alimento personalizado</div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px', gap: 8, marginBottom: 8 }}>
+                                    <input className="input-field" style={{ padding: '8px 10px', fontSize: '0.82rem' }} value={newFood.nombre} onChange={e => setNewFood(prev => ({ ...prev, nombre: e.target.value }))} placeholder="Ej: Tarta de atún casera" />
+                                    <input className="input-field" style={{ padding: '8px 10px', fontSize: '0.82rem' }} type="number" value={newFood.calorias} onChange={e => setNewFood(prev => ({ ...prev, calorias: e.target.value }))} placeholder="kcal" />
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 8 }}>
+                                    <input className="input-field" style={{ padding: '8px 10px', fontSize: '0.8rem' }} type="number" value={newFood.proteinas} onChange={e => setNewFood(prev => ({ ...prev, proteinas: e.target.value }))} placeholder="P" />
+                                    <input className="input-field" style={{ padding: '8px 10px', fontSize: '0.8rem' }} type="number" value={newFood.carbos} onChange={e => setNewFood(prev => ({ ...prev, carbos: e.target.value }))} placeholder="C" />
+                                    <input className="input-field" style={{ padding: '8px 10px', fontSize: '0.8rem' }} type="number" value={newFood.grasas} onChange={e => setNewFood(prev => ({ ...prev, grasas: e.target.value }))} placeholder="G" />
+                                    <input className="input-field" style={{ padding: '8px 10px', fontSize: '0.8rem' }} value={newFood.categoria} onChange={e => setNewFood(prev => ({ ...prev, categoria: e.target.value }))} placeholder="Categoria" />
+                                </div>
+                                <button type="button" className="btn btn-secondary btn-sm" style={{ width: '100%', justifyContent: 'center' }} onClick={createCustomFood} disabled={!String(newFood.nombre || '').trim()}>
+                                    <Plus size={14} /> Guardar alimento
+                                </button>
+                            </div>
                             <div style={{ padding: '0 0px', marginBottom: 12, flexShrink: 0 }}>
                                 <div style={{
                                     display: 'flex', alignItems: 'center', background: 'var(--bg-input)',
