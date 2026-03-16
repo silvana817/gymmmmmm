@@ -9,6 +9,15 @@ import { analyzeFoodImageBase64, analyzeFoodText } from '../utils/aiScanner'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { getLongDateLabel, getShortWeekdayLabel, getTodayISO, getWeekDates, shiftISODate } from '../utils/date'
 
+const getFoodOriginLabel = (food) => {
+    if (food?.origenLabel) return food.origenLabel
+    if (food?.origen_label) return food.origen_label
+    const rawSource = String(food?.source || food?.fuente || '').toLowerCase()
+    return rawSource === 'community' || rawSource === 'comunidad'
+        ? 'Subido por la comunidad'
+        : 'Base del sistema'
+}
+
 export function MiNutricion() {
     const { currentAlumnoId } = useAppSession()
     const { getAlumnoNutricion, addFoodItem, removeFoodItem, editFoodItem, initializeNutritionDay, analyzeFood, planesNutricionales, addCustomFood } = useAppNutrition()
@@ -476,6 +485,7 @@ function AddFoodModal({ tipo, foodDatabase, foodCategories, analyzeFood, onAdd, 
                             </button>
                             <div className="card" style={{ marginBottom: 20 }}>
                                 <div style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: 8 }}>{selectedFood.nombre}</div>
+                                <div style={{ fontSize: '0.78rem', color: 'var(--accent-secondary)', marginBottom: 8 }}>{getFoodOriginLabel(selectedFood)}</div>
                                 <div style={{ display: 'flex', gap: 12, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                                     <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>{Math.round(selectedFood.calorias * (weightInput / (selectedFood.nombre.includes('unidad') || selectedFood.nombre.includes('cda') || selectedFood.nombre.includes('Scoop') ? 1 : 100)))} kcal</span>
                                     <span>P: {Math.round(selectedFood.proteinas * (weightInput / (selectedFood.nombre.includes('unidad') || selectedFood.nombre.includes('cda') || selectedFood.nombre.includes('Scoop') ? 1 : 100)))}g</span>
@@ -620,6 +630,9 @@ function AddFoodModal({ tipo, foodDatabase, foodCategories, analyzeFood, onAdd, 
                                                         <span>P: {f.proteinas}g</span>
                                                         <span>C: {f.carbos}g</span>
                                                         <span>G: {f.grasas}g</span>
+                                                    </div>
+                                                    <div style={{ fontSize: '0.72rem', color: 'var(--accent-secondary)', marginTop: 4 }}>
+                                                        {getFoodOriginLabel(f)}
                                                     </div>
                                                 </div>
                                                 <button style={{
@@ -871,6 +884,9 @@ function AddFoodModal({ tipo, foodDatabase, foodCategories, analyzeFood, onAdd, 
                                                 proteinas: Number(manualForm.proteinas) || 0,
                                                 carbos: Number(manualForm.carbos) || 0,
                                                 grasas: Number(manualForm.grasas) || 0,
+                                                source: 'community',
+                                                fuente: 'comunidad',
+                                                origenLabel: 'Subido por la comunidad',
                                             })
                                         }} disabled={!manualForm.nombre || !manualForm.calorias}>
                                         Guardar en mis alimentos
@@ -884,6 +900,9 @@ function AddFoodModal({ tipo, foodDatabase, foodCategories, analyzeFood, onAdd, 
                                                     proteinas: Number(manualForm.proteinas) || 0,
                                                     carbos: Number(manualForm.carbos) || 0,
                                                     grasas: Number(manualForm.grasas) || 0,
+                                                    source: 'community',
+                                                    fuente: 'comunidad',
+                                                    origenLabel: 'Subido por la comunidad',
                                                     base_calorias: Number(manualForm.calorias),
                                                     base_proteinas: Number(manualForm.proteinas) || 0,
                                                     base_carbos: Number(manualForm.carbos) || 0,
@@ -994,8 +1013,4 @@ function EditFoodModal({ food, onClose, onSave }) {
 }
 
 export default MiNutricion
-
-
-
-
 
