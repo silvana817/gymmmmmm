@@ -3,6 +3,15 @@ import { Apple, ClipboardList, Eye, Target, Plus, Search, Edit2, Trash2, X } fro
 import { useAppAlumnos, useAppNutrition, useAppCatalog } from '../context/AppContext'
 import { getTodayISO } from '../utils/date'
 
+const getFoodOriginLabel = (food) => {
+    if (food?.origenLabel) return food.origenLabel
+    if (food?.origen_label) return food.origen_label
+    const rawSource = String(food?.source || food?.fuente || '').toLowerCase()
+    return rawSource === 'community' || rawSource === 'comunidad'
+        ? 'Subido por la comunidad'
+        : 'Base del sistema'
+}
+
 export default function Nutricion() {
     const { alumnos } = useAppAlumnos()
     const {
@@ -295,6 +304,9 @@ function PlanNutricionalBuilder({ initialPlan, foodDatabase, foodCategories, add
             proteinas: Number(newFood.proteinas) || 0,
             carbos: Number(newFood.carbos) || 0,
             grasas: Number(newFood.grasas) || 0,
+            source: 'community',
+            fuente: 'comunidad',
+            origenLabel: 'Subido por la comunidad',
         })
 
         if (created) {
@@ -450,11 +462,14 @@ function PlanNutricionalBuilder({ initialPlan, foodDatabase, foodCategories, add
 
                             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 16 }}>
                                 {filteredFoods.map(food => (
-                                    <div key={food.nombre} className="card" style={{ padding: 10, cursor: 'pointer', transition: 'all 0.2s ease', border: '1px solid var(--border-color)', flexShrink: 0 }} onClick={() => addItem(food)}>
+                                    <div key={food.id || food.nombre} className="card" style={{ padding: 10, cursor: 'pointer', transition: 'all 0.2s ease', border: '1px solid var(--border-color)', flexShrink: 0 }} onClick={() => addItem(food)}>
                                         <div style={{ fontWeight: 600, fontSize: '0.8rem', marginBottom: 4 }}>{food.nombre}</div>
                                         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{food.calorias} cal | P:{food.proteinas} C:{food.carbos} G:{food.grasas}</div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-                                            <span className="badge" style={{ fontSize: '0.6rem' }}>{food.categoria}</span>
+                                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                                <span className="badge" style={{ fontSize: '0.6rem' }}>{food.categoria}</span>
+                                                <span className="badge" style={{ fontSize: '0.6rem', background: 'rgba(123, 92, 255, 0.18)', color: 'var(--accent-primary)' }}>{getFoodOriginLabel(food)}</span>
+                                            </div>
                                             <button className="btn btn-ghost btn-sm" style={{ padding: 0, color: 'var(--accent-primary)' }}><Plus size={14} /></button>
                                         </div>
                                     </div>
