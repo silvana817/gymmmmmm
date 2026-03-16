@@ -833,7 +833,9 @@ export function AppProvider({ children }) {
             grasas: toNumber(foodInput.grasas),
             fibra: toNumber(foodInput.fibra),
             categoria: String(foodInput.categoria || 'Personalizados').trim() || 'Personalizados',
-            source: 'custom',
+            source: 'community',
+            fuente: 'comunidad',
+            origenLabel: 'Subido por la comunidad',
             createdAt: new Date().toISOString(),
         }
 
@@ -949,11 +951,18 @@ export function AppProvider({ children }) {
     const catalogValue = useMemo(() => {
         const normalizedCustomFoods = customFoods
             .filter(item => isRecord(item) && String(item.nombre || '').trim())
-            .map(item => ({ ...item, source: 'custom' }))
+            .map(item => ({ ...item, source: item.source || 'community' }))
+
+        const normalizedBaseFoods = FOOD_DATABASE.map(item => ({
+            ...item,
+            source: item.source || 'system',
+            fuente: item.fuente || 'sistema',
+            origenLabel: item.origenLabel || 'Base del sistema',
+        }))
 
         const mergedFoodDatabase = [
             ...normalizedCustomFoods,
-            ...FOOD_DATABASE.filter(baseFood => !normalizedCustomFoods.some(customFood => customFood.nombre.toLowerCase() === baseFood.nombre.toLowerCase())),
+            ...normalizedBaseFoods.filter(baseFood => !normalizedCustomFoods.some(customFood => customFood.nombre.toLowerCase() === baseFood.nombre.toLowerCase())),
         ]
 
         return {
@@ -1161,7 +1170,6 @@ export function useAppWorkoutLogs() {
 export function useApp() {
     return useRequiredContext(AppContext, 'useApp')
 }
-
 
 
 
