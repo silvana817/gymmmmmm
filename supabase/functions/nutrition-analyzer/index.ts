@@ -136,6 +136,30 @@ Debes devolver tu respuesta obligatoriamente en formato JSON, con la siguiente e
 `
 }
 
+function getErrorStatus(error: unknown) {
+    const message = String(error instanceof Error ? error.message : '').toLowerCase()
+
+    if (
+        message.includes('debes enviar')
+        || message.includes('modo de analisis')
+        || message.includes('formato de imagen no soportado')
+        || message.includes('imagen base64 es invalida')
+        || message.includes('la imagen excede el limite')
+    ) {
+        return 400
+    }
+
+    if (message.includes('jwt') || message.includes('unauthorized') || message.includes('not authenticated')) {
+        return 401
+    }
+
+    if (message.includes('gemini_api_key') || message.includes('api key')) {
+        return 503
+    }
+
+    return 500
+}
+
 function jsonResponse(payload: unknown, status = 200) {
     return new Response(JSON.stringify(payload), {
         status,
@@ -156,12 +180,18 @@ Deno.serve(async (request) => {
     }
 
     try {
-        const body = await request.json()
+        let body: Record<string, unknown>
+
+        try {
+            body = await request.json()
+        } catch {
+            return jsonResponse({ error: 'Body JSON invalido.' }, 400)
+        }
         const mode = String(body?.mode || '').trim()
         const ai = getGeminiClient()
         const model = getGeminiModel()
 
-        let contents: string | Array<unknown>
+        let contents: Array<unknown>
 
         if (mode === 'text') {
             const text = String(body?.text || '').trim()
@@ -170,21 +200,32 @@ Deno.serve(async (request) => {
                 return jsonResponse({ error: 'Debes enviar un texto para analizar.' }, 400)
             }
 
-            contents = buildTextPrompt(text)
+            contents = [{ role: 'user', parts: [{ text: buildTextPrompt(text) }] }]
         } else if (mode === 'image') {
             const { base64Image, imageMimeType } = normalizeImagePayload(body?.base64Image, body?.imageMimeType)
 
-            contents = [
-                {
-                    text: buildImagePrompt(),
-                },
-                {
-                    inlineData: {
-                        data: base64Image,
-                        mimeType: imageMimeType,
+contents = [{
+                role: 'user',
+                parts: [
+                    {
+                        text: buildImagePrompt(),
                     },
-                },
-            ]
+                    {
+                        inlineData: {
+                            data: base64Image,
+                            mimeType: imageMimeType,
+                        }
+                    }
+                ]
+            }],
+                    {
+                        inlineData: {
+                            data: base64Image,
+                            mimeType: imageMimeType,
+                        },
+                    },
+                ],
+            }]
         } else {
             return jsonResponse({ error: 'Modo de analisis no soportado.' }, 400)
         }
@@ -210,7 +251,10 @@ Deno.serve(async (request) => {
         const message = error instanceof Error
             ? error.message
             : 'No se pudo completar el analisis nutricional.'
+        const status = getErrorStatus(error)
 
-        return jsonResponse({ error: message }, 500)
+        console.error('[nutrition-analyzer] request_failed', { status, message })
+
+        return jsonResponse({ error: message }, status)
     }
 })
