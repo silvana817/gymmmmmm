@@ -6,6 +6,9 @@ const corsHeaders = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024
+const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
 function buildNutritionSchema() {
     return {
         type: Type.OBJECT,
@@ -43,6 +46,65 @@ function getGeminiModel() {
     return Deno.env.get('GEMINI_MODEL')?.trim() || 'gemini-2.5-flash'
 }
 
+function sanitizeAlimentos(rawAlimentos: unknown[]) {
+    return rawAlimentos
+        .map((item) => {
+            const nombre = String((item as { nombre?: unknown })?.nombre ?? '').trim()
+            if (!nombre) return null
+
+            const toNonNegativeInt = (value: unknown) => {
+                const parsed = Number(value)
+                if (!Number.isFinite(parsed)) return 0
+                return Math.max(0, Math.round(parsed))
+            }
+
+            return {
+                nombre,
+                calorias: toNonNegativeInt((item as { calorias?: unknown })?.calorias),
+                proteinas: toNonNegativeInt((item as { proteinas?: unknown })?.proteinas),
+                carbos: toNonNegativeInt((item as { carbos?: unknown })?.carbos),
+                grasas: toNonNegativeInt((item as { grasas?: unknown })?.grasas),
+            }
+        })
+        .filter(Boolean)
+}
+
+function stripDataUrlPrefix(base64Image: string) {
+    const marker = 'base64,'
+    const markerIndex = base64Image.indexOf(marker)
+    return markerIndex >= 0 ? base64Image.slice(markerIndex + marker.length) : base64Image
+}
+
+function decodeBase64Bytes(base64Value: string) {
+    try {
+        return Uint8Array.from(atob(base64Value), (char) => char.charCodeAt(0)).byteLength
+    } catch {
+        throw new Error('La imagen base64 es invalida.')
+    }
+}
+
+function normalizeImagePayload(rawBase64Image: unknown, rawImageMimeType: unknown) {
+    const base64Input = String(rawBase64Image || '').trim()
+    const imageMimeType = String(rawImageMimeType || '').trim().toLowerCase() || 'image/jpeg'
+
+    if (!base64Input) {
+        throw new Error('Debes enviar una imagen para analizar.')
+    }
+
+    if (!ALLOWED_IMAGE_MIME_TYPES.has(imageMimeType)) {
+        throw new Error('Formato de imagen no soportado. Usa JPG, PNG o WEBP.')
+    }
+
+    const base64Image = stripDataUrlPrefix(base64Input)
+    const imageSizeBytes = decodeBase64Bytes(base64Image)
+
+    if (imageSizeBytes > MAX_IMAGE_BYTES) {
+        throw new Error('La imagen excede el limite de 8 MB.')
+    }
+
+    return { base64Image, imageMimeType }
+}
+
 function buildTextPrompt(text: string) {
     return `
 Eres un nutricionista experto. Analiza el siguiente texto con una comida o conjunto de comidas.
@@ -74,6 +136,30 @@ Debes devolver tu respuesta obligatoriamente en formato JSON, con la siguiente e
 `
 }
 
+function getErrorStatus(error: unknown) {
+    const message = String(error instanceof Error ? error.message : '').toLowerCase()
+
+    if (
+        message.includes('debes enviar')
+        || message.includes('modo de analisis')
+        || message.includes('formato de imagen no soportado')
+        || message.includes('imagen base64 es invalida')
+        || message.includes('la imagen excede el limite')
+    ) {
+        return 400
+    }
+
+    if (message.includes('jwt') || message.includes('unauthorized') || message.includes('not authenticated')) {
+        return 401
+    }
+
+    if (message.includes('gemini_api_key') || message.includes('api key')) {
+        return 503
+    }
+
+    return 500
+}
+
 function jsonResponse(payload: unknown, status = 200) {
     return new Response(JSON.stringify(payload), {
         status,
@@ -94,12 +180,18 @@ Deno.serve(async (request) => {
     }
 
     try {
-        const body = await request.json()
+        let body: Record<string, unknown>
+
+        try {
+            body = await request.json()
+        } catch {
+            return jsonResponse({ error: 'Body JSON invalido.' }, 400)
+        }
         const mode = String(body?.mode || '').trim()
         const ai = getGeminiClient()
         const model = getGeminiModel()
 
-        let contents: string | Array<unknown>
+        let contents: Array<unknown>
 
         if (mode === 'text') {
             const text = String(body?.text || '').trim()
@@ -108,24 +200,24 @@ Deno.serve(async (request) => {
                 return jsonResponse({ error: 'Debes enviar un texto para analizar.' }, 400)
             }
 
-            contents = buildTextPrompt(text)
+            contents = [{ role: 'user', parts: [{ text: buildTextPrompt(text) }] }]
         } else if (mode === 'image') {
-            const base64Image = String(body?.base64Image || '').trim()
-            const imageMimeType = String(body?.imageMimeType || '').trim() || 'image/jpeg'
+            const { base64Image, imageMimeType } = normalizeImagePayload(body?.base64Image, body?.imageMimeType)
 
-            if (!base64Image) {
-                return jsonResponse({ error: 'Debes enviar una imagen para analizar.' }, 400)
-            }
-
-            contents = [
-                buildImagePrompt(),
-                {
-                    inlineData: {
-                        data: base64Image,
-                        mimeType: imageMimeType,
+            contents = [{
+                role: 'user',
+                parts: [
+                    {
+                        text: buildImagePrompt(),
                     },
-                },
-            ]
+                    {
+                        inlineData: {
+                            data: base64Image,
+                            mimeType: imageMimeType,
+                        }
+                    }
+                ]
+            }]
         } else {
             return jsonResponse({ error: 'Modo de analisis no soportado.' }, 400)
         }
@@ -144,14 +236,17 @@ Deno.serve(async (request) => {
         }
 
         const data = JSON.parse(response.text)
-        const alimentos = Array.isArray(data?.alimentos) ? data.alimentos : []
+        const alimentos = sanitizeAlimentos(Array.isArray(data?.alimentos) ? data.alimentos : [])
 
         return jsonResponse({ alimentos })
     } catch (error) {
         const message = error instanceof Error
             ? error.message
             : 'No se pudo completar el analisis nutricional.'
+        const status = getErrorStatus(error)
 
-        return jsonResponse({ error: message }, 500)
+        console.error('[nutrition-analyzer] request_failed', { status, message })
+
+        return jsonResponse({ error: message }, status)
     }
 })

@@ -3,13 +3,22 @@ import { Apple, ClipboardList, Eye, Target, Plus, Search, Edit2, Trash2, X } fro
 import { useAppAlumnos, useAppNutrition, useAppCatalog } from '../context/AppContext'
 import { getTodayISO } from '../utils/date'
 
+const getFoodOriginLabel = (food) => {
+    if (food?.origenLabel) return food.origenLabel
+    if (food?.origen_label) return food.origen_label
+    const rawSource = String(food?.source || food?.fuente || '').toLowerCase()
+    return rawSource === 'community' || rawSource === 'comunidad'
+        ? 'Subido por la comunidad'
+        : 'Base del sistema'
+}
+
 export default function Nutricion() {
     const { alumnos } = useAppAlumnos()
     const {
         getAlumnoNutricion, setNutritionGoals, setNutritionPlan,
-        planesNutricionales, deletePlanNutricional, addPlanNutricional, updatePlanNutricional
+        planesNutricionales, deletePlanNutricional, addPlanNutricional, updatePlanNutricional, addCustomFood
     } = useAppNutrition()
-    const { foodDatabase } = useAppCatalog()
+    const { foodDatabase, foodCategories } = useAppCatalog()
 
     const [activeTab, setActiveTab] = useState('control') // 'control' | 'planes'
 
@@ -165,7 +174,8 @@ export default function Nutricion() {
                 <PlanNutricionalBuilder
                     initialPlan={editingPlan}
                     foodDatabase={foodDatabase}
-                    foodCategories={foodDatabase.map(f => f.categoria).filter((v, i, a) => a.indexOf(v) === i)}
+                    foodCategories={foodCategories}
+                    addCustomFood={addCustomFood}
                     onSave={plan => {
                         if (editingPlan) updatePlanNutricional(editingPlan.id, plan)
                         else addPlanNutricional(plan)
@@ -267,7 +277,7 @@ function PlanModal({ alumno, planId, planes, onSave, onClose }) {
     )
 }
 
-function PlanNutricionalBuilder({ initialPlan, foodDatabase, foodCategories, onSave, onClose }) {
+function PlanNutricionalBuilder({ initialPlan, foodDatabase, foodCategories, addCustomFood, onSave, onClose }) {
     const [nombre, setNombre] = useState(initialPlan?.nombre || '')
     const [descripcion, setDescripcion] = useState(initialPlan?.descripcion || '')
     const [comidas, setComidas] = useState(initialPlan?.comidas || [
@@ -280,6 +290,31 @@ function PlanNutricionalBuilder({ initialPlan, foodDatabase, foodCategories, onS
     const [activeMeal, setActiveMeal] = useState(0)
     const [search, setSearch] = useState('')
     const [filterCat, setFilterCat] = useState('Todos')
+
+    const [newFood, setNewFood] = useState({ nombre: '', categoria: 'Personalizados', calorias: '', proteinas: '', carbos: '', grasas: '' })
+
+    const createCustomFood = () => {
+        const nombre = String(newFood.nombre || '').trim()
+        if (!nombre) return
+
+        const created = addCustomFood({
+            nombre,
+            categoria: newFood.categoria || 'Personalizados',
+            calorias: Number(newFood.calorias) || 0,
+            proteinas: Number(newFood.proteinas) || 0,
+            carbos: Number(newFood.carbos) || 0,
+            grasas: Number(newFood.grasas) || 0,
+            source: 'community',
+            fuente: 'comunidad',
+            origenLabel: 'Subido por la comunidad',
+        })
+
+        if (created) {
+            setSearch(created.nombre)
+            setFilterCat(created.categoria || 'Todos')
+            setNewFood({ nombre: '', categoria: 'Personalizados', calorias: '', proteinas: '', carbos: '', grasas: '' })
+        }
+    }
 
     const addMeal = () => {
         setComidas(prev => [...prev, { tipo: `Comida ${prev.length + 1}`, items: [] }])
@@ -379,6 +414,22 @@ function PlanNutricionalBuilder({ initialPlan, foodDatabase, foodCategories, onS
 
                     <div className="routine-builder-main-grid">
                         <div className="builder-library-col">
+                            <div className="card" style={{ padding: 10, marginBottom: 10, border: '1px dashed var(--border-color)' }}>
+                                <div style={{ fontSize: '0.78rem', fontWeight: 700, marginBottom: 8 }}>Crear alimento personalizado</div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px', gap: 8, marginBottom: 8 }}>
+                                    <input className="input-field" style={{ padding: '8px 10px', fontSize: '0.82rem' }} value={newFood.nombre} onChange={e => setNewFood(prev => ({ ...prev, nombre: e.target.value }))} placeholder="Ej: Tarta de atún casera" />
+                                    <input className="input-field" style={{ padding: '8px 10px', fontSize: '0.82rem' }} type="number" value={newFood.calorias} onChange={e => setNewFood(prev => ({ ...prev, calorias: e.target.value }))} placeholder="kcal" />
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 8 }}>
+                                    <input className="input-field" style={{ padding: '8px 10px', fontSize: '0.8rem' }} type="number" value={newFood.proteinas} onChange={e => setNewFood(prev => ({ ...prev, proteinas: e.target.value }))} placeholder="P" />
+                                    <input className="input-field" style={{ padding: '8px 10px', fontSize: '0.8rem' }} type="number" value={newFood.carbos} onChange={e => setNewFood(prev => ({ ...prev, carbos: e.target.value }))} placeholder="C" />
+                                    <input className="input-field" style={{ padding: '8px 10px', fontSize: '0.8rem' }} type="number" value={newFood.grasas} onChange={e => setNewFood(prev => ({ ...prev, grasas: e.target.value }))} placeholder="G" />
+                                    <input className="input-field" style={{ padding: '8px 10px', fontSize: '0.8rem' }} value={newFood.categoria} onChange={e => setNewFood(prev => ({ ...prev, categoria: e.target.value }))} placeholder="Categoria" />
+                                </div>
+                                <button type="button" className="btn btn-secondary btn-sm" style={{ width: '100%', justifyContent: 'center' }} onClick={createCustomFood} disabled={!String(newFood.nombre || '').trim()}>
+                                    <Plus size={14} /> Guardar alimento
+                                </button>
+                            </div>
                             <div style={{ padding: '0 0px', marginBottom: 12, flexShrink: 0 }}>
                                 <div style={{
                                     display: 'flex', alignItems: 'center', background: 'var(--bg-input)',
@@ -411,11 +462,14 @@ function PlanNutricionalBuilder({ initialPlan, foodDatabase, foodCategories, onS
 
                             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 16 }}>
                                 {filteredFoods.map(food => (
-                                    <div key={food.nombre} className="card" style={{ padding: 10, cursor: 'pointer', transition: 'all 0.2s ease', border: '1px solid var(--border-color)', flexShrink: 0 }} onClick={() => addItem(food)}>
+                                    <div key={food.id || food.nombre} className="card" style={{ padding: 10, cursor: 'pointer', transition: 'all 0.2s ease', border: '1px solid var(--border-color)', flexShrink: 0 }} onClick={() => addItem(food)}>
                                         <div style={{ fontWeight: 600, fontSize: '0.8rem', marginBottom: 4 }}>{food.nombre}</div>
                                         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{food.calorias} cal | P:{food.proteinas} C:{food.carbos} G:{food.grasas}</div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-                                            <span className="badge" style={{ fontSize: '0.6rem' }}>{food.categoria}</span>
+                                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                                <span className="badge" style={{ fontSize: '0.6rem' }}>{food.categoria}</span>
+                                                <span className="badge" style={{ fontSize: '0.6rem', background: 'rgba(123, 92, 255, 0.18)', color: 'var(--accent-primary)' }}>{getFoodOriginLabel(food)}</span>
+                                            </div>
                                             <button className="btn btn-ghost btn-sm" style={{ padding: 0, color: 'var(--accent-primary)' }}><Plus size={14} /></button>
                                         </div>
                                     </div>
