@@ -204,7 +204,7 @@ Deno.serve(async (request) => {
         } else if (mode === 'image') {
             const { base64Image, imageMimeType } = normalizeImagePayload(body?.base64Image, body?.imageMimeType)
 
-contents = [{
+            contents = [{
                 role: 'user',
                 parts: [
                     {
@@ -217,14 +217,6 @@ contents = [{
                         }
                     }
                 ]
-            }],
-                    {
-                        inlineData: {
-                            data: base64Image,
-                            mimeType: imageMimeType,
-                        },
-                    },
-                ],
             }]
         } else {
             return jsonResponse({ error: 'Modo de analisis no soportado.' }, 400)
