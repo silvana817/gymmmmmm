@@ -18,55 +18,6 @@ const getFoodOriginLabel = (food) => {
         : 'Base del sistema'
 }
 
-
-const MAX_UPLOAD_PHOTO_WIDTH = 1280
-const MAX_UPLOAD_PHOTO_HEIGHT = 1280
-const COMPRESSED_PHOTO_QUALITY = 0.82
-
-async function optimizeImageForAnalyzer(file) {
-    const supportedImageTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
-    const inputType = supportedImageTypes.has(file.type) ? file.type : 'image/jpeg'
-
-    const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = (event) => resolve(event.target?.result)
-        reader.onerror = () => reject(new Error('No se pudo leer la imagen.'))
-        reader.readAsDataURL(file)
-    })
-
-    const image = await new Promise((resolve, reject) => {
-        const img = new Image()
-        img.onload = () => resolve(img)
-        img.onerror = () => reject(new Error('No se pudo procesar la imagen.'))
-        img.src = String(dataUrl)
-    })
-
-    const width = image.width || 1
-    const height = image.height || 1
-    const ratio = Math.min(MAX_UPLOAD_PHOTO_WIDTH / width, MAX_UPLOAD_PHOTO_HEIGHT / height, 1)
-    const targetWidth = Math.max(1, Math.round(width * ratio))
-    const targetHeight = Math.max(1, Math.round(height * ratio))
-
-    const canvas = document.createElement('canvas')
-    canvas.width = targetWidth
-    canvas.height = targetHeight
-
-    const ctx = canvas.getContext('2d')
-    if (!ctx) {
-        throw new Error('No se pudo preparar la imagen para analizar.')
-    }
-
-    ctx.drawImage(image, 0, 0, targetWidth, targetHeight)
-
-    const compressedDataUrl = canvas.toDataURL(inputType, COMPRESSED_PHOTO_QUALITY)
-
-    return {
-        preview: compressedDataUrl,
-        mimeType: inputType,
-        base64: compressedDataUrl.split(',')[1] || '',
-    }
-}
-
 export function MiNutricion() {
     const { currentAlumnoId } = useAppSession()
     const { getAlumnoNutricion, addFoodItem, removeFoodItem, editFoodItem, initializeNutritionDay, analyzeFood, planesNutricionales, addCustomFood } = useAppNutrition()
@@ -447,7 +398,6 @@ function AddFoodModal({ tipo, foodDatabase, foodCategories, analyzeFood, onAdd, 
     const [weightInput, setWeightInput] = useState(100)
     const [analyzing, setAnalyzing] = useState(false)
     const [photoPreview, setPhotoPreview] = useState(null)
-    const [photoPayload, setPhotoPayload] = useState(null)
     const [photoAnalyzed, setPhotoAnalyzed] = useState(false)
     const [analysisError, setAnalysisError] = useState('')
     const fileInputRef = useRef(null)
@@ -481,36 +431,34 @@ function AddFoodModal({ tipo, foodDatabase, foodCategories, analyzeFood, onAdd, 
         }
     }
 
-    const handlePhotoUpload = async (e) => {
+    const handlePhotoUpload = (e) => {
         const file = e.target.files[0]
         if (!file) return
-
         setAnalysisError('')
-        setPhotoAnalyzed(false)
-        setAiResults([])
-
-        try {
-            const prepared = await optimizeImageForAnalyzer(file)
-            setPhotoPreview(prepared.preview)
-            setPhotoPayload({ base64: prepared.base64, mimeType: prepared.mimeType })
-        } catch (error) {
-            setPhotoPreview(null)
-            setPhotoPayload(null)
-            setAnalysisError(error?.message || 'No se pudo preparar la imagen para analizar.')
+        const reader = new FileReader()
+        reader.onload = (ev) => {
+            setPhotoPreview(ev.target.result)
+            setPhotoAnalyzed(false)
+            setAiResults([])
         }
+        reader.readAsDataURL(file)
     }
 
     const analyzePhoto = async () => {
-        if (!photoPreview || !photoPayload?.base64) return
+        if (!photoPreview) return
         setAnalysisError('')
         setAnalyzing(true)
 
         try {
+            // Extraemos solo la parte base64 (removiendo el prefijo data:image/jpeg;base64,)
+            const base64Data = photoPreview.split(',')[1]
+            const mimeType = photoPreview.split(';')[0].split(':')[1] || 'image/jpeg'
+
             if (!isSupabaseConfigured) {
                 throw new Error('Configura Supabase y la funcion nutrition-analyzer para analizar fotos.')
             }
 
-            const resultados = await analyzeFoodImageBase64(photoPayload.base64, photoPayload.mimeType || 'image/jpeg')
+            const resultados = await analyzeFoodImageBase64(base64Data, mimeType)
             setAiResults(resultados)
             setPhotoAnalyzed(true)
         } catch (error) {
@@ -741,7 +689,6 @@ function AddFoodModal({ tipo, foodDatabase, foodCategories, analyzeFood, onAdd, 
                                             <Upload size={32} style={{ color: 'var(--accent-primary)', marginBottom: 12 }} />
                                             <div style={{ fontWeight: 600, marginBottom: 4, color: 'var(--text-primary)' }}>Tomar o subir foto</div>
                                             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Mantene la comida bien iluminada</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 6 }}>La app optimiza automaticamente la foto antes de enviarla.</div>
                                         </div>
                                     ) : (
                                         <div>
@@ -757,7 +704,7 @@ function AddFoodModal({ tipo, foodDatabase, foodCategories, analyzeFood, onAdd, 
                                                     position: 'absolute', top: 8, right: 8,
                                                     background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%',
                                                     padding: 6, color: '#fff', cursor: 'pointer', display: 'flex'
-                                                }} onClick={() => { setPhotoPreview(null); setPhotoPayload(null); setAiResults([]); setPhotoAnalyzed(false); setAnalysisError('') }}>
+                                                }} onClick={() => { setPhotoPreview(null); setAiResults([]); setPhotoAnalyzed(false); setAnalysisError('') }}>
                                                     <X size={14} />
                                                 </button>
                                             </div>

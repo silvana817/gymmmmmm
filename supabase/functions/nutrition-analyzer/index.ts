@@ -156,7 +156,6 @@ Deno.serve(async (request) => {
     }
 
     try {
-        const startedAt = Date.now()
         const body = await request.json()
         const mode = String(body?.mode || '').trim()
         const ai = getGeminiClient()
@@ -171,11 +170,9 @@ Deno.serve(async (request) => {
                 return jsonResponse({ error: 'Debes enviar un texto para analizar.' }, 400)
             }
 
-            console.log(`[nutrition-analyzer] mode=text chars=${text.length}`)
             contents = buildTextPrompt(text)
         } else if (mode === 'image') {
             const { base64Image, imageMimeType } = normalizeImagePayload(body?.base64Image, body?.imageMimeType)
-            console.log(`[nutrition-analyzer] mode=image mime=${imageMimeType} bytes=${decodeBase64Bytes(base64Image)}`)
 
             contents = [
                 buildImagePrompt(),
@@ -205,7 +202,6 @@ Deno.serve(async (request) => {
 
         const data = JSON.parse(response.text)
         const alimentos = sanitizeAlimentos(Array.isArray(data?.alimentos) ? data.alimentos : [])
-        console.log(`[nutrition-analyzer] ok mode=${mode} items=${alimentos.length} elapsed_ms=${Date.now() - startedAt}`)
 
         return jsonResponse({ alimentos })
     } catch (error) {
@@ -213,7 +209,6 @@ Deno.serve(async (request) => {
             ? error.message
             : 'No se pudo completar el analisis nutricional.'
 
-        console.error(`[nutrition-analyzer] error ${message}`)
         return jsonResponse({ error: message }, 500)
     }
 })
