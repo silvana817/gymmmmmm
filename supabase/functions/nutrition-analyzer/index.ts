@@ -6,6 +6,9 @@ const corsHeaders = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024
+const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
 function buildNutritionSchema() {
     return {
         type: Type.OBJECT,
@@ -41,6 +44,65 @@ function getGeminiClient() {
 
 function getGeminiModel() {
     return Deno.env.get('GEMINI_MODEL')?.trim() || 'gemini-2.5-flash'
+}
+
+function sanitizeAlimentos(rawAlimentos: unknown[]) {
+    return rawAlimentos
+        .map((item) => {
+            const nombre = String((item as { nombre?: unknown })?.nombre ?? '').trim()
+            if (!nombre) return null
+
+            const toNonNegativeInt = (value: unknown) => {
+                const parsed = Number(value)
+                if (!Number.isFinite(parsed)) return 0
+                return Math.max(0, Math.round(parsed))
+            }
+
+            return {
+                nombre,
+                calorias: toNonNegativeInt((item as { calorias?: unknown })?.calorias),
+                proteinas: toNonNegativeInt((item as { proteinas?: unknown })?.proteinas),
+                carbos: toNonNegativeInt((item as { carbos?: unknown })?.carbos),
+                grasas: toNonNegativeInt((item as { grasas?: unknown })?.grasas),
+            }
+        })
+        .filter(Boolean)
+}
+
+function stripDataUrlPrefix(base64Image: string) {
+    const marker = 'base64,'
+    const markerIndex = base64Image.indexOf(marker)
+    return markerIndex >= 0 ? base64Image.slice(markerIndex + marker.length) : base64Image
+}
+
+function decodeBase64Bytes(base64Value: string) {
+    try {
+        return Uint8Array.from(atob(base64Value), (char) => char.charCodeAt(0)).byteLength
+    } catch {
+        throw new Error('La imagen base64 es invalida.')
+    }
+}
+
+function normalizeImagePayload(rawBase64Image: unknown, rawImageMimeType: unknown) {
+    const base64Input = String(rawBase64Image || '').trim()
+    const imageMimeType = String(rawImageMimeType || '').trim().toLowerCase() || 'image/jpeg'
+
+    if (!base64Input) {
+        throw new Error('Debes enviar una imagen para analizar.')
+    }
+
+    if (!ALLOWED_IMAGE_MIME_TYPES.has(imageMimeType)) {
+        throw new Error('Formato de imagen no soportado. Usa JPG, PNG o WEBP.')
+    }
+
+    const base64Image = stripDataUrlPrefix(base64Input)
+    const imageSizeBytes = decodeBase64Bytes(base64Image)
+
+    if (imageSizeBytes > MAX_IMAGE_BYTES) {
+        throw new Error('La imagen excede el limite de 8 MB.')
+    }
+
+    return { base64Image, imageMimeType }
 }
 
 function buildTextPrompt(text: string) {
@@ -94,6 +156,7 @@ Deno.serve(async (request) => {
     }
 
     try {
+        const startedAt = Date.now()
         const body = await request.json()
         const mode = String(body?.mode || '').trim()
         const ai = getGeminiClient()
@@ -108,14 +171,11 @@ Deno.serve(async (request) => {
                 return jsonResponse({ error: 'Debes enviar un texto para analizar.' }, 400)
             }
 
+            console.log(`[nutrition-analyzer] mode=text chars=${text.length}`)
             contents = buildTextPrompt(text)
         } else if (mode === 'image') {
-            const base64Image = String(body?.base64Image || '').trim()
-            const imageMimeType = String(body?.imageMimeType || '').trim() || 'image/jpeg'
-
-            if (!base64Image) {
-                return jsonResponse({ error: 'Debes enviar una imagen para analizar.' }, 400)
-            }
+            const { base64Image, imageMimeType } = normalizeImagePayload(body?.base64Image, body?.imageMimeType)
+            console.log(`[nutrition-analyzer] mode=image mime=${imageMimeType} bytes=${decodeBase64Bytes(base64Image)}`)
 
             contents = [
                 buildImagePrompt(),
@@ -144,7 +204,8 @@ Deno.serve(async (request) => {
         }
 
         const data = JSON.parse(response.text)
-        const alimentos = Array.isArray(data?.alimentos) ? data.alimentos : []
+        const alimentos = sanitizeAlimentos(Array.isArray(data?.alimentos) ? data.alimentos : [])
+        console.log(`[nutrition-analyzer] ok mode=${mode} items=${alimentos.length} elapsed_ms=${Date.now() - startedAt}`)
 
         return jsonResponse({ alimentos })
     } catch (error) {
@@ -152,6 +213,7 @@ Deno.serve(async (request) => {
             ? error.message
             : 'No se pudo completar el analisis nutricional.'
 
+        console.error(`[nutrition-analyzer] error ${message}`)
         return jsonResponse({ error: message }, 500)
     }
 })
