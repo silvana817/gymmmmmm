@@ -22,7 +22,15 @@ async function invokeNutritionAnalyzer(payload, fallbackMessage) {
     })
 
     if (error) {
-        throw new Error(fallbackMessage)
+        const statusHint = error?.context?.status ? ` (HTTP ${error.context.status})` : ''
+        const message = String(error?.message || '').trim()
+        const isAuthError = message.toLowerCase().includes('jwt') || message.toLowerCase().includes('unauthorized') || message.toLowerCase().includes('not authenticated')
+
+        if (isAuthError) {
+            throw new Error('Tu sesion expiro o no estas autenticado. Volve a iniciar sesion e intenta nuevamente.')
+        }
+
+        throw new Error(`${fallbackMessage}${statusHint}${message ? ` Detalle: ${message}` : ''}`)
     }
 
     return getAnalyzerItems(data)
