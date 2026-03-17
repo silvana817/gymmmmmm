@@ -204,12 +204,20 @@ Deno.serve(async (request) => {
         } else if (mode === 'image') {
             const { base64Image, imageMimeType } = normalizeImagePayload(body?.base64Image, body?.imageMimeType)
 
-            contents = [{
+contents = [{
                 role: 'user',
                 parts: [
                     {
                         text: buildImagePrompt(),
                     },
+                    {
+                        inlineData: {
+                            data: base64Image,
+                            mimeType: imageMimeType,
+                        }
+                    }
+                ]
+            }],
                     {
                         inlineData: {
                             data: base64Image,
