@@ -23,7 +23,29 @@ async function invokeNutritionAnalyzer(payload, fallbackMessage) {
 
     if (error) {
         const statusHint = error?.context?.status ? ` (HTTP ${error.context.status})` : ''
-        const message = String(error?.message || '').trim()
+
+        let message = String(error?.message || '').trim()
+        const response = error?.context
+
+        if (response && typeof response === 'object' && typeof response.clone === 'function') {
+            try {
+                const payload = await response.clone().json()
+                const serverError = String(payload?.error || '').trim()
+                if (serverError) {
+                    message = serverError
+                }
+            } catch {
+                try {
+                    const rawText = String(await response.clone().text() || '').trim()
+                    if (rawText) {
+                        message = rawText
+                    }
+                } catch {
+                    // ignore parsing failures and preserve the generic SDK message
+                }
+            }
+        }
+
         const isAuthError = message.toLowerCase().includes('jwt') || message.toLowerCase().includes('unauthorized') || message.toLowerCase().includes('not authenticated')
 
         if (isAuthError) {

@@ -175,7 +175,9 @@ Deno.serve(async (request) => {
             const { base64Image, imageMimeType } = normalizeImagePayload(body?.base64Image, body?.imageMimeType)
 
             contents = [
-                buildImagePrompt(),
+                {
+                    text: buildImagePrompt(),
+                },
                 {
                     inlineData: {
                         data: base64Image,
